@@ -1,9 +1,11 @@
-cmake_minimum_required(VERSION 3.4)
+cmake_minimum_required(VERSION 3.12)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-option(BUILD_COVERAGE "Build coverage" OFF)
+option(BUILD_TESTS "Build tests" ON)
+option(BUILD_DOCS "Build documentation" OFF)
+option(BUILD_COVERAGE "Build code coverage" OFF)
 
 set(
   HUNTER_CACHE_SERVERS
@@ -18,57 +20,81 @@ HunterGate(
   SHA1 "35fa55bc1dfcf9f4d7264f8bb26cd1759ce1ae07"
 )
 
-project(boost-filesystem)
+# TODO: rename project and delete this comment
+project(finance_analyzer VERSION 0.1.0)
 string(APPEND CMAKE_CXX_FLAGS " -pedantic -Werror -Wall -Wextra")
 string(APPEND CMAKE_CXX_FLAGS " -Wno-unused-command-line-argument")
 string(APPEND CMAKE_CXX_FLAGS " -Wshadow -Wnon-virtual-dtor")
 
+hunter_add_package(GTest)
 hunter_add_package(Boost COMPONENTS filesystem)
 find_package(Boost CONFIG REQUIRED filesystem)
-
-hunter_add_package(GTest)
 find_package(GTest CONFIG REQUIRED)
 
-add_library(boost-filesystem STATIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/sources/DirectoryAnaliz.cpp
-        )
+add_library(boost STATIC
+  # enum your files and delete this comment
+        sources/DirectoryAnaliz.cpp
+        include/DirectoryAnaliz.hpp)
 
-target_link_libraries(boost-filesystem Boost::filesystem)
+target_link_libraries(boost Boost::filesystem)
 
-add_executable(analyzer
-        ${CMAKE_CURRENT_SOURCE_DIR}/sources/main.cpp
+add_executable(demo
+  ${CMAKE_CURRENT_SOURCE_DIR}/demo/main.cpp
+        sources/DirectoryAnaliz.cpp
+        include/DirectoryAnaliz.hpp)
+
+
+target_include_directories(boost PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<INSTALL_INTERFACE:include>"
 )
 
-target_link_libraries(analyzer boost-filesystem)
+target_link_libraries(demo boost
+        Boost::filesystem)
 
-add_executable(tests
-  ${CMAKE_CURRENT_SOURCE_DIR}/tests/test.cpp
-)
-
-target_include_directories(boost-filesystem
-  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_include_directories(tests
-  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_link_libraries(tests GTest::gtest_main boost-filesystem)
-
-enable_testing()
-add_test(NAME unit_tests COMMAND tests)
+if(BUILD_TESTS)
+  add_executable(tests
+    # TODO: enum your files and delete this comment
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test.cpp
+  )
+  target_link_libraries(tests boost GTest::gtest_main)
+  enable_testing()
+  add_test(NAME unit_tests COMMAND tests)
+endif()
 
 if(BUILD_COVERAGE)
-  function(ENABLE_PROJECT_COVERAGE PROJECT)
-    target_compile_options(${PROJECT} PRIVATE --coverage)
-    target_link_libraries(${PROJECT} --coverage)
-    add_coverage(${PROJECT})
-  endfunction()
-
   set(ENABLE_COVERAGE ON CACHE BOOL "Enable coverage build." FORCE)
-  list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+  list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/tools/coverage/cmake")
   find_package(codecov)
-  enable_project_coverage(boost-filesystem)
-  enable_project_coverage(tests)
-  list(APPEND LCOV_REMOVE_PATTERNS "'${PROJECT_SOURCE_DIR}/tests/*'")
+  add_coverage(boost)
+  add_coverage(tests)
   coverage_evaluate()
 endif()
+
+if(BUILD_DOCS)
+  set(DOXYGEN_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/_docs)
+  set(DOXYGEN_EXAMPLE_PATH examples)
+  set(DOXYGEN_GENERATE_HTML NO)
+  set(DOXYGEN_GENERATE_MAN YES)
+  find_package(Doxygen)
+  doxygen_add_docs(docs include)
+  install(DIRECTORY ${DOXYGEN_OUTPUT_DIRECTORY}/man DESTINATION share)
+  # add_dependencies(install docs) need to call target docs before install or package
+endif()
+
+include(CPackConfig.cmake)
+
+install(TARGETS boost demo
+  EXPORT "boost-targets"
+  RUNTIME DESTINATION bin
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  INCLUDES DESTINATION include
+)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION include)
+
+install(EXPORT "boost-targets"
+  NAMESPACE "boost::"
+  DESTINATION "lib/cmake"
+)
