@@ -49,37 +49,40 @@ void DirectoryAnaliz::reading_directory(std::string name_dir, const std::string 
 {
   path dir_path_in_file = path(new_dir_path);
   directory_iterator dir_iter_in_file = directory_iterator(dir_path_in_file);
-  int test_len_filename = 29;
-  std::string str; int len_filename;
+  std::string str;
   boost::filesystem::directory_iterator end;
   for (; dir_iter_in_file != end; ++ dir_iter_in_file)
   {
-    str = dir_iter_in_file->path().filename().string();
-    len_filename = str.length();
-    if ((dir_iter_in_file->path().extension() == ".txt")
-        && (test_len_filename == len_filename))
+    if (dir_iter_in_file->path().extension() == ".txt")
     {
-      bool t;
-      t = check_filename(name_dir, dir_iter_in_file->path().stem().string());
-      if(t == true)
+      bool u = check_old_filename(dir_iter->path().string());
+      if (u == true)
       {
-        std::cout << name_dir << " "
-                  << dir_iter_in_file->path().filename().string() << std::endl;
+        bool t;
+        t = check_filename(name_dir, dir_iter_in_file->path().stem().string());
+        if(t == true)
+        {
+          std::cout << name_dir << " "
+                    << dir_iter_in_file->path().filename().string() << std::endl;
+        }
       }
     }
   }
 }
 
+
 bool DirectoryAnaliz::check_filename(std::string dir, std::string filename)
 {
   std::string date = "";
   std::string id = "";
+  const std::string for_check = "0123456789";
   auto it_first = filename.find_first_of('_') + 1;
   auto it_last = filename.find_last_of('_') - 1;
   id = filename.substr(it_first, it_last - it_first + 1);
   date =
       filename.substr(it_last + 2, filename.length() - it_last);
-  if( id.length() != 8 || date.length() != 8)
+  if ((id.find_first_not_of(for_check) != std::string::npos)
+      || (date.find_first_not_of(for_check) != std::string::npos))
   {
     return false;
   }
@@ -125,6 +128,17 @@ bool DirectoryAnaliz::check_filename(std::string dir, std::string filename)
     }
   }
   else
+  {
+    return false;
+  }
+  return true;
+}
+
+bool DirectoryAnaliz::check_old_filename(const std::string &new_dir_path)
+{
+  path dir_path_in_file = path(new_dir_path);
+  directory_iterator iter = directory_iterator(dir_path_in_file);
+  if (iter->path().extension() == ".old")
   {
     return false;
   }

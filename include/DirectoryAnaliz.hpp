@@ -27,6 +27,7 @@ class DirectoryAnaliz
   void analiz();
   void reading_directory(std::string name_dir, const std::string &new_dir_path);
   void out_br_information();
+  bool check_old_filename(const std::string &new_dir_path);
   bool check_filename(std::string dir, std::string filename);
   ~DirectoryAnaliz();
  private:
